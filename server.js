@@ -2,80 +2,79 @@ const express = require('express');
 const passport = require('passport');
 const session = require('express-session');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const NaverStrategy = require('passport-naver').Strategy;
 require('dotenv').config();
 
 const app = express();
 
-// 정적 파일 서빙
-app.use(express.static(__dirname)); // 현재 디렉토리에서 정적 파일 제공
-
-// 세션 설정
-app.use(session({ secret: 'your_secret_key', resave: false, saveUninitialized: true }));
+app.use(express.static(__dirname));
+app.use(session({ secret: 'your_secret_key', resave: false, saveUninitialized: false }));
 app.use(passport.initialize());
 app.use(passport.session());
 
-// 사용자 직렬화/역직렬화
-passport.serializeUser((user, done) => {
-    done(null, user);
-});
-passport.deserializeUser((user, done) => {
-    done(null, user);
-});
+// 사용자 정보를 세션에 저장
+passport.serializeUser((user, done) => done(null, user));
+passport.deserializeUser((user, done) => done(null, user));
 
-// Google OAuth Strategy
+// Google 로그인 전략
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/auth/google/callback',
+    callbackURL: 'http://localhost:3000/auth/google/callback',
 }, (accessToken, refreshToken, profile, done) => {
-    done(null, { provider: 'google', ...profile });
+    // profile 객체의 데이터 확인 및 세션 저장
+    const user = {
+        id: profile.id,
+        displayName: profile.displayName || 'No Name',
+        email: profile.emails ? profile.emails[0].value : 'No Email',
+        photo: profile.photos ? profile.photos[0].value : null
+    };
+    return done(null, user);
 }));
 
-// Naver OAuth Strategy
-passport.use(new NaverStrategy({
-    clientID: process.env.NAVER_CLIENT_ID,
-    clientSecret: process.env.NAVER_CLIENT_SECRET,
-    callbackURL: '/auth/naver/callback',
-}, (accessToken, refreshToken, profile, done) => {
-    done(null, { provider: 'naver', ...profile });
-}));
-
-// Google 로그인 엔드포인트
+// Google 로그인 라우트
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 app.get('/auth/google/callback',
     passport.authenticate('google', { failureRedirect: '/' }),
-    (req, res) => {
-        res.redirect('/home'); // 성공 시 홈 화면으로 리디렉트
-    }
+    (req, res) => res.redirect('/home')
 );
 
-// Naver 로그인 엔드포인트
-app.get('/auth/naver', passport.authenticate('naver'));
-app.get('/auth/naver/callback',
-    passport.authenticate('naver', { failureRedirect: '/' }),
-    (req, res) => {
-        res.redirect('/home'); // 성공 시 홈 화면으로 리디렉트
-    }
-);
-
-// 홈 화면
+// 홈 페이지
 app.get('/home', (req, res) => {
-    if (!req.isAuthenticated()) {
-        return res.redirect('/');
+    if (req.isAuthenticated()) {
+        const { displayName, email, photo } = req.user;
+        res.send(`
+            <h1>Welcome, ${displayName}</h1>
+            <p>Email: ${email}</p>
+            ${photo ? `<img src="${photo}" alt="Profile Photo" style="border-radius: 50%;" />` : ''}
+            <br>
+            <a href="/logout"><button>Logout</button></a>
+        `);
+    } else {
+        res.redirect('/');
     }
-    res.send(`<h1>Welcome ${req.user.displayName || req.user.id} (Provider: ${req.user.provider})</h1>`);
 });
 
-// 로그아웃
+// 로그아웃 라우트
 app.get('/logout', (req, res) => {
     req.logout(err => {
-        if (err) return next(err);
-        res.redirect('/');
+        if (err) {
+            console.error('Logout Error:', err);
+            return res.redirect('/error');
+        }
+        req.session.destroy(() => {
+            res.redirect('/');
+        });
     });
 });
 
-// 서버 실행
-app.listen(3000, () => {
-    console.log('Server running on http://localhost:3000');
+// 메인 페이지
+app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
+
+// 글로벌 에러 핸들러
+app.use((err, req, res, next) => {
+    console.error('Global Error:', err);
+    res.status(500).send('Something went wrong!');
 });
+
+// 서버 시작
+app.listen(3000, () => console.log('Server running on http://localhost:3000'));
