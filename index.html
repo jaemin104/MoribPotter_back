@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google & Naver Login</title>
+</head>
+<body>
+    <h1>Login with Google or Naver</h1>
+    
+    <!-- Google 로그인 버튼 -->
+    <button onclick="loginWithGoogle()">Login with Google</button>
+
+    <!-- Naver 로그인 버튼 -->
+    <button onclick="loginWithNaver()">Login with Naver</button>
+
+    <script>
+        // Google 로그인 URL
+        function loginWithGoogle() {
+            window.location.href = '/auth/google';
+        }
+
+        // Naver 로그인 URL
+        function loginWithNaver() {
+            window.location.href = '/auth/naver';
+        }
+    </script>
+</body>
+</html>
