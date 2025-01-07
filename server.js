@@ -167,6 +167,118 @@ app.get('/scores/leaderboard', (req, res) => {
     });
 });
 
+// 모든 레시피와 재료 정보를 가져오는 API
+app.get('/recipes', (req, res) => {
+    const query = `
+        SELECT 
+            r.id AS recipe_id, 
+            r.portion_name, 
+            r.full_time,
+            r.image_path AS recipe_image,
+            i1.name AS fir_name, i1.image_path AS fir_image, r.fir_time,
+            i2.name AS sec_name, i2.image_path AS sec_image, r.sec_time,
+            i3.name AS thi_name, i3.image_path AS thi_image, r.thi_time
+        FROM recipes r
+        JOIN ingredients i1 ON r.fir_id = i1.id
+        JOIN ingredients i2 ON r.sec_id = i2.id
+        JOIN ingredients i3 ON r.thi_id = i3.id;
+    `;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('MySQL 쿼리 오류:', err);
+            return res.status(500).send('데이터베이스 오류');
+        }
+
+        // 데이터를 포맷팅하여 반환
+        const formattedResults = results.map(recipe => ({
+            recipe_id: recipe.recipe_id,
+            portion_name: recipe.portion_name,
+            full_time: recipe.full_time,
+            recipe_image: recipe.recipe_image,
+            ingredients: [
+                {
+                    name: recipe.fir_name,
+                    time: recipe.fir_time,
+                    image: recipe.fir_image,
+                },
+                {
+                    name: recipe.sec_name,
+                    time: recipe.sec_time,
+                    image: recipe.sec_image,
+                },
+                {
+                    name: recipe.thi_name,
+                    time: recipe.thi_time,
+                    image: recipe.thi_image,
+                },
+            ],
+        }));
+
+        res.json(formattedResults);
+    });
+});
+
+// 특정 레시피를 ID로 조회하는 API
+app.get('/recipes/:id', (req, res) => {
+    const { id } = req.params;
+
+    const query = `
+        SELECT 
+            r.id AS recipe_id, 
+            r.portion_name, 
+            r.full_time,
+            r.image_path AS recipe_image,
+            i1.name AS fir_name, i1.image_path AS fir_image, r.fir_time,
+            i2.name AS sec_name, i2.image_path AS sec_image, r.sec_time,
+            i3.name AS thi_name, i3.image_path AS thi_image, r.thi_time
+        FROM recipes r
+        JOIN ingredients i1 ON r.fir_id = i1.id
+        JOIN ingredients i2 ON r.sec_id = i2.id
+        JOIN ingredients i3 ON r.thi_id = i3.id
+        WHERE r.id = ?;
+    `;
+
+    db.query(query, [id], (err, results) => {
+        if (err) {
+            console.error('MySQL 쿼리 오류:', err);
+            return res.status(500).send('데이터베이스 오류');
+        }
+
+        if (results.length === 0) {
+            return res.status(404).send('레시피를 찾을 수 없습니다.');
+        }
+
+        const recipe = results[0];
+        const formattedRecipe = {
+            recipe_id: recipe.recipe_id,
+            portion_name: recipe.portion_name,
+            full_time: recipe.full_time,
+            recipe_image: recipe.recipe_image,
+            ingredients: [
+                {
+                    name: recipe.fir_name,
+                    time: recipe.fir_time,
+                    image: recipe.fir_image,
+                },
+                {
+                    name: recipe.sec_name,
+                    time: recipe.sec_time,
+                    image: recipe.sec_image,
+                },
+                {
+                    name: recipe.thi_name,
+                    time: recipe.thi_time,
+                    image: recipe.thi_image,
+                },
+            ],
+        };
+
+        res.json(formattedRecipe);
+    });
+});
+
+
 // 서버 실행
 app.listen(80, () => {
     console.log('Server running on http://172.10.7.89');
